@@ -39,8 +39,11 @@ React (Vite) → Express API → Supabase (Postgres)
 - **Server**: CRUD endpoints + scheduling engine (computed per-request, not stored)
 - **Client**: displays data, forms for creating orders/supplies
 
-## Tools Used
+## Tools and Major Prompts Used
 - Cursor, specific model is Opus 4.6 for coding
+- Broke down engineering process into planning then impleenting, seen in `transcript_plan.md` and `transcript_implementation.md`
+- Made sure to check through the implemented plans and make changes, getting model to verify my logic and going back and forth with model to explore feasibility and tradeoffs before committing to an approach in order to get the plan down
+- Directing model to apply deeper reasoning for scheduling engine that was the core logic, prompting it to "think hard"
 
 ## Key Design Decisions and Tradeoffs
 
