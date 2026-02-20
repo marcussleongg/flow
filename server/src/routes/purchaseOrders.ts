@@ -2,12 +2,15 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase.js";
 import type { ProductType } from "../constants.js";
 import { PRODUCTS } from "../constants.js";
+import { advanceProduction } from "../lib/advanceProduction.js";
 
 const router = Router();
 
 const VALID_PRODUCT_TYPES = Object.keys(PRODUCTS) as ProductType[];
 
 router.get("/", async (_req, res) => {
+  await advanceProduction();
+
   const { data, error } = await supabase
     .from("purchase_orders")
     .select("*")

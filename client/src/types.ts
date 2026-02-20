@@ -14,9 +14,9 @@ export interface Supply {
   id: number;
   material: "pet" | "pta" | "eg";
   quantity: number;
-  supplier_name: string;
+  supplier_name: string | null;
   tracking_number: string | null;
-  eta: string;
+  eta: string | null;
   order_status: "ordered" | "received";
   created_at: string;
   received_at: string | null;

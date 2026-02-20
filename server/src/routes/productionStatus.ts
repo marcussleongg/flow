@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase.js";
 import { PRODUCTS, MATERIALS, type ProductType, type Material } from "../constants.js";
+import { advanceProduction } from "../lib/advanceProduction.js";
 
 const router = Router();
 
@@ -34,7 +35,7 @@ interface IncomingSupply {
   id: number;
   material: Material;
   quantity: number;
-  eta: string;
+  eta: string | null;
 }
 
 function addHours(date: Date, hours: number): Date {
@@ -47,6 +48,10 @@ function noShortage(shortage: MaterialPool): boolean {
 
 router.get("/", async (_req, res) => {
   const now = new Date();
+
+  // ── Advance production lifecycle before computing schedule ──
+
+  await advanceProduction();
 
   // ── Fetch all data in parallel ────────────────────────────
 
@@ -76,7 +81,7 @@ router.get("/", async (_req, res) => {
 
   // ── Step 2: Initialize line clocks from in_production ─────
 
-  const lineAvailableAt: Record<ProductType, Date> = {
+  const lineAvailableAt: Record<ProductType, Date | null> = {
     liter: new Date(now),
     gallon: new Date(now),
   };
@@ -94,7 +99,7 @@ router.get("/", async (_req, res) => {
     // If this order finishes later than the current clock, adopt it.
     // Clamp to now so pending-order start times are never in the past.
     const available = new Date(Math.max(completion.getTime(), now.getTime()));
-    if (available > lineAvailableAt[pt]) {
+    if (lineAvailableAt[pt] === null || available > lineAvailableAt[pt]) {
       lineAvailableAt[pt] = available;
     }
 
@@ -167,27 +172,44 @@ router.get("/", async (_req, res) => {
     if (noShortage(shortage)) {
       for (const m of MATERIALS) inventory[m] -= needed[m];
 
-      const start = lineAvailableAt[pt];
-      const end = addHours(start, productionHours);
-      lineAvailableAt[pt] = end;
+      const lineAt = lineAvailableAt[pt];
+      if (lineAt === null) {
+        // Line clock is unknown (prior order depends on a no-ETA supply)
+        scheduledOrders.push({
+          id: order.id,
+          product_type: pt,
+          customer_name: order.customer_name,
+          quantity: order.quantity,
+          notes: order.notes,
+          created_at: order.created_at,
+          expectedStart: null,
+          expectedCompletion: null,
+          scheduleStatus: "on_track",
+        });
+      } else {
+        const start = lineAt;
+        const end = addHours(start, productionHours);
+        lineAvailableAt[pt] = end;
 
-      scheduledOrders.push({
-        id: order.id,
-        product_type: pt,
-        customer_name: order.customer_name,
-        quantity: order.quantity,
-        notes: order.notes,
-        created_at: order.created_at,
-        expectedStart: start.toISOString(),
-        expectedCompletion: end.toISOString(),
-        scheduleStatus: "on_track",
-      });
+        scheduledOrders.push({
+          id: order.id,
+          product_type: pt,
+          customer_name: order.customer_name,
+          quantity: order.quantity,
+          notes: order.notes,
+          created_at: order.created_at,
+          expectedStart: start.toISOString(),
+          expectedCompletion: end.toISOString(),
+          scheduleStatus: "on_track",
+        });
+      }
       continue;
     }
 
     // 3b. Shortage exists — try to resolve with incoming supplies
     const remaining: MaterialPool = { ...shortage };
     let materialsReadyAt = new Date(0);
+    let hasUnknownEta = false;
     const claimedIndices: number[] = [];
 
     for (let i = 0; i < incomingSupplies.length; i++) {
@@ -197,8 +219,12 @@ router.get("/", async (_req, res) => {
       remaining[supply.material] = Math.max(0, remaining[supply.material] - supply.quantity);
       claimedIndices.push(i);
 
-      const eta = new Date(supply.eta);
-      if (eta > materialsReadyAt) materialsReadyAt = eta;
+      if (supply.eta === null) {
+        hasUnknownEta = true;
+      } else {
+        const eta = new Date(supply.eta);
+        if (eta > materialsReadyAt) materialsReadyAt = eta;
+      }
 
       if (noShortage(remaining)) break;
     }
@@ -217,21 +243,37 @@ router.get("/", async (_req, res) => {
         incomingSupplies.splice(claimedIndices[i]!, 1);
       }
 
-      const start = new Date(Math.max(lineAvailableAt[pt].getTime(), materialsReadyAt.getTime()));
-      const end = addHours(start, productionHours);
-      lineAvailableAt[pt] = end;
+      if (hasUnknownEta || lineAvailableAt[pt] === null) {
+        // Can't compute dates — a claimed supply has no ETA, or line clock is already unknown
+        lineAvailableAt[pt] = null;
+        scheduledOrders.push({
+          id: order.id,
+          product_type: pt,
+          customer_name: order.customer_name,
+          quantity: order.quantity,
+          notes: order.notes,
+          created_at: order.created_at,
+          expectedStart: null,
+          expectedCompletion: null,
+          scheduleStatus: "delay_expected",
+        });
+      } else {
+        const start = new Date(Math.max(lineAvailableAt[pt]!.getTime(), materialsReadyAt.getTime()));
+        const end = addHours(start, productionHours);
+        lineAvailableAt[pt] = end;
 
-      scheduledOrders.push({
-        id: order.id,
-        product_type: pt,
-        customer_name: order.customer_name,
-        quantity: order.quantity,
-        notes: order.notes,
-        created_at: order.created_at,
-        expectedStart: start.toISOString(),
-        expectedCompletion: end.toISOString(),
-        scheduleStatus: "delay_expected",
-      });
+        scheduledOrders.push({
+          id: order.id,
+          product_type: pt,
+          customer_name: order.customer_name,
+          quantity: order.quantity,
+          notes: order.notes,
+          created_at: order.created_at,
+          expectedStart: start.toISOString(),
+          expectedCompletion: end.toISOString(),
+          scheduleStatus: "delay_expected",
+        });
+      }
     } else {
       // Unresolvable — block the line
       lineBlocked[pt] = true;

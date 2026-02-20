@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase.js";
 import { MATERIALS, type Material } from "../constants.js";
+import { advanceProduction } from "../lib/advanceProduction.js";
 
 const router = Router();
 
 router.get("/", async (_req, res) => {
+  await advanceProduction();
+
   const { data, error } = await supabase
     .from("supplies")
     .select("*")
@@ -21,8 +24,8 @@ router.get("/", async (_req, res) => {
 router.post("/", async (req, res) => {
   const { material, quantity, supplier_name, tracking_number, eta } = req.body;
 
-  if (!material || !quantity || !supplier_name || !eta) {
-    res.status(400).json({ error: "material, quantity, supplier_name, and eta are required" });
+  if (!material || !quantity) {
+    res.status(400).json({ error: "material and quantity are required" });
     return;
   }
 
@@ -41,9 +44,9 @@ router.post("/", async (req, res) => {
     .insert({
       material,
       quantity,
-      supplier_name,
+      supplier_name: supplier_name || null,
       tracking_number: tracking_number || null,
-      eta,
+      eta: eta || null,
       order_status: "ordered",
     })
     .select()

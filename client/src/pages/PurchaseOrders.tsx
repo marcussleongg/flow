@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { PurchaseOrder } from "../types";
 
-const STATUS_BADGE: Record<string, string> = {
-  pending: "badge badge-neutral",
-  in_production: "badge badge-warning",
-  completed: "badge badge-success",
+const STATUS_BADGE: Record<string, { className: string; label: string }> = {
+  pending: { className: "badge badge-neutral", label: "Pending" },
+  in_production: { className: "badge badge-warning", label: "In Production" },
+  completed: { className: "badge badge-success", label: "Delivered" },
 };
 
 function formatDate(iso: string) {
@@ -19,6 +19,7 @@ export default function PurchaseOrders() {
   const { data: orders, isLoading, error: queryError } = useQuery({
     queryKey: ["purchase-orders"],
     queryFn: () => api.get<PurchaseOrder[]>("/purchase-orders"),
+    refetchInterval: 30_000,
   });
 
   const [productType, setProductType] = useState<"liter" | "gallon">("liter");
@@ -112,7 +113,7 @@ export default function PurchaseOrders() {
                     <td>{o.product_type === "liter" ? "1-Liter" : "1-Gallon"}</td>
                     <td>{o.customer_name}</td>
                     <td>{o.quantity.toLocaleString()}</td>
-                    <td><span className={STATUS_BADGE[o.production_status] ?? "badge"}>{o.production_status.replace("_", " ")}</span></td>
+                    <td>{(() => { const b = STATUS_BADGE[o.production_status]; return b ? <span className={b.className}>{b.label}</span> : <span className="badge">{o.production_status}</span>; })()}</td>
                     <td className="text-secondary text-sm">{formatDate(o.created_at)}</td>
                   </tr>
                 ))}

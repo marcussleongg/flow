@@ -30,6 +30,7 @@ export default function Supplies() {
   const { data: supplies, isLoading, error: queryError } = useQuery({
     queryKey: ["supplies"],
     queryFn: () => api.get<Supply[]>("/supplies"),
+    refetchInterval: 30_000,
   });
 
   const [material, setMaterial] = useState<"pet" | "pta" | "eg">("pet");
@@ -39,7 +40,7 @@ export default function Supplies() {
   const [eta, setEta] = useState("");
 
   const create = useMutation({
-    mutationFn: (data: { material: string; quantity: number; supplier_name: string | null; tracking_number: string | null; eta: string }) =>
+    mutationFn: (data: { material: string; quantity: number; supplier_name: string | null; tracking_number: string | null; eta: string | null }) =>
       api.post<Supply>("/supplies", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplies"] });
@@ -66,13 +67,13 @@ export default function Supplies() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const qty = parseFloat(quantity);
-    if (!supplierName.trim() || isNaN(qty) || qty <= 0 || !eta) return;
+    if (isNaN(qty) || qty <= 0) return;
     create.mutate({
       material,
       quantity: qty,
-      supplier_name: supplierName.trim(),
+      supplier_name: supplierName.trim() || null,
       tracking_number: trackingNumber.trim() || null,
-      eta: new Date(eta).toISOString(),
+      eta: eta ? new Date(eta).toISOString() : null,
     });
   }
 
@@ -97,16 +98,16 @@ export default function Supplies() {
               <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Grams" min={1} required />
             </div>
             <div className="form-field">
-              <label>Supplier *</label>
-              <input type="text" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Supplier name" required />
+              <label>Supplier</label>
+              <input type="text" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Optional" />
             </div>
             <div className="form-field">
               <label>Tracking #</label>
               <input type="text" value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} placeholder="Optional" />
             </div>
             <div className="form-field">
-              <label>ETA *</label>
-              <input type="datetime-local" value={eta} onChange={(e) => setEta(e.target.value)} required />
+              <label>ETA</label>
+              <input type="datetime-local" value={eta} onChange={(e) => setEta(e.target.value)} />
             </div>
             <button type="submit" className="btn btn-primary" disabled={create.isPending}>
               {create.isPending ? "Creating..." : "Create Supply"}
@@ -151,9 +152,9 @@ export default function Supplies() {
                     <td>{s.id}</td>
                     <td>{MATERIAL_LABELS[s.material] ?? s.material}</td>
                     <td>{formatWeight(s.quantity)}</td>
-                    <td>{s.supplier_name}</td>
+                    <td>{s.supplier_name ?? "—"}</td>
                     <td className="text-secondary">{s.tracking_number ?? "—"}</td>
-                    <td className="text-sm">{formatDate(s.eta)}</td>
+                    <td className="text-sm">{s.eta ? formatDate(s.eta) : "—"}</td>
                     <td><span className={STATUS_BADGE[s.order_status] ?? "badge"}>{s.order_status}</span></td>
                     <td>
                       {s.order_status === "ordered" && (

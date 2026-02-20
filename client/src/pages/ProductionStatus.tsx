@@ -3,14 +3,14 @@ import { api } from "../lib/api";
 import type { ProductionStatusResponse, LineStatus, ScheduleStatus } from "../types";
 
 const SCHEDULE_BADGE: Record<ScheduleStatus, { className: string; label: string }> = {
-  on_track: { className: "badge badge-success", label: "On Track" },
+  on_track: { className: "badge badge-neutral", label: "On Track" },
   delay_expected: { className: "badge badge-warning", label: "Delay Expected" },
   unable_to_fulfill: { className: "badge badge-danger", label: "Unable to Fulfill" },
 };
 
 const LINE_LABELS: Record<string, { name: string; rate: string }> = {
-  liter: { name: "1-Liter Line", rate: "2,000 bottles/hr" },
-  gallon: { name: "1-Gallon Line", rate: "1,500 bottles/hr" },
+  liter: { name: "Liter Line", rate: "2,000 bottles/hr" },
+  gallon: { name: "Gallon Line", rate: "1,500 bottles/hr" },
 };
 
 function formatDate(iso: string) {
@@ -61,6 +61,7 @@ function LineSection({ lineKey, line }: { lineKey: string; line: LineStatus }) {
                 <th>Order</th>
                 <th>Customer</th>
                 <th>Quantity</th>
+                <th>Order Date</th>
                 <th>Expected Start</th>
                 <th>Expected Completion</th>
                 <th>Status</th>
@@ -74,8 +75,9 @@ function LineSection({ lineKey, line }: { lineKey: string; line: LineStatus }) {
                     <td>#{o.id}</td>
                     <td>{o.customer_name}</td>
                     <td>{o.quantity.toLocaleString()}</td>
-                    <td className="text-sm">{o.expectedStart ? formatDate(o.expectedStart) : "—"}</td>
-                    <td className="text-sm">{o.expectedCompletion ? formatDate(o.expectedCompletion) : "—"}</td>
+                    <td className="text-secondary text-sm">{formatDate(o.created_at)}</td>
+                    <td className="text-sm">{o.expectedStart ? formatDate(o.expectedStart) : "Unable to estimate"}</td>
+                    <td className="text-sm">{o.expectedCompletion ? formatDate(o.expectedCompletion) : "Unable to estimate"}</td>
                     <td><span className={badge.className}>{badge.label}</span></td>
                   </tr>
                 );
