@@ -45,7 +45,7 @@ router.post("/", async (req, res) => {
       product_type,
       customer_name,
       quantity,
-      notes: notes ?? null,
+      notes: notes || null,
       production_status: "pending",
     })
     .select()

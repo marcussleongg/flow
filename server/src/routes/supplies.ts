@@ -42,7 +42,7 @@ router.post("/", async (req, res) => {
       material,
       quantity,
       supplier_name,
-      tracking_number: tracking_number ?? null,
+      tracking_number: tracking_number || null,
       eta,
       order_status: "ordered",
     })

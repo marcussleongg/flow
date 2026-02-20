@@ -64,7 +64,7 @@ router.get("/", async (_req, res) => {
     }
   }
 
-  // ── Step 1: Build simulated inventory ─────────────────────
+  // ── Step 1: Build simulated inventory (a copy for updating production status of each order) ────────
 
   const inventory: MaterialPool = { pet: 0, pta: 0, eg: 0 };
   for (const row of inventoryRes.data!) {

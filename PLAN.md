@@ -260,5 +260,6 @@ If order N on a line is "unable to fulfill," all subsequent orders on that same 
 
 - [ ] Error handling (API + UI)
 - [ ] Loading states
+- [ ] Implement compulsory fields and add asterix beside compulsory field names
 - [ ] Input validation
 - [ ] README with setup instructions, design decisions, tradeoffs

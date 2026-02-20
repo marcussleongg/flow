@@ -19,6 +19,18 @@ app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/supplies", supplyRoutes);
 app.use("/api/production-status", productionStatusRoutes);
 
+app.use(
+  (
+    err: Error,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  },
+);
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
